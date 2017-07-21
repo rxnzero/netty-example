@@ -20,24 +20,35 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.netty.util.CharsetUtil;
 
 public class NettyHttpServer {
 	private ChannelFuture channel;
 	private final EventLoopGroup masterGroup;
 	private final EventLoopGroup slaveGroup;
-
+	
+	String charsetName = "utf-8";
+	
 	public NettyHttpServer() {
 		masterGroup = new NioEventLoopGroup();
 		slaveGroup = new NioEventLoopGroup();
 	}
-
+	
+	private String handleMessage(String request) {
+		String response = 
+				"<?xml version=\"1.0\" encoding=\"" + charsetName + "\" ?>" +
+				"<response><message>ÏùëÎãµ - Hello from Netty!<message><response>";
+		System.out.println("# Body : " + request);	
+		return response;
+	}
+	
 	public void start(int port) {
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			@Override
@@ -59,35 +70,44 @@ public class NettyHttpServer {
 								@Override
 								public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 									if (msg instanceof FullHttpRequest) {
-										final FullHttpRequest request = (FullHttpRequest) msg;
+										Charset charset = Charset.forName(charsetName);
 										
+										final FullHttpRequest request = (FullHttpRequest) msg;
+										System.out.println("//--------------------------------------------------------------------------");
+										System.out.println("Request : " + request.toString());
 										System.out.println("URI : " + request.uri());
-										QueryStringDecoder decoder = new QueryStringDecoder(request.uri(), CharsetUtil.UTF_8); // Charset.forName("euc-kr") , CharsetUtil.UTF_8;
+										
+										//UTF_8  Charset.forName("euc-kr") , CharsetUtil.UTF_8;
+//										QueryStringDecoder decoder = new QueryStringDecoder(request.uri(), CharsetUtil.UTF_8); 
+										QueryStringDecoder decoder = new QueryStringDecoder(request.uri(), true);
 										Map<String,List<String>> params = decoder.parameters();
 										
+										System.out.println("//--------------------------------------------------------------------------");
 										for(String key : params.keySet()) {
-											System.out.println("GetParam : " + key + " = " + params.get(key));
+											System.out.println("# GetParam : " + key + " = " + params.get(key));
 										}
 										
+										System.out.println("//--------------------------------------------------------------------------");
 										// print body
 										ByteBuf bodyBuf = request.content();
 										int bodySize = bodyBuf.readableBytes();
 										System.out.println("Body Size : " + bodySize);
+										
+										String responseMessage = ""; 
 										if(bodySize > 0) {
-											System.out.println(bodyBuf.toString());
+											responseMessage = handleMessage(bodyBuf.toString(charset)); 
 										}
 										
-										final String responseMessage = "Hello from Netty!";
 
 										FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
-												HttpResponseStatus.OK, copiedBuffer(responseMessage.getBytes()));
+												HttpResponseStatus.OK, copiedBuffer(responseMessage.getBytes(charset)));
 
-										if (HttpHeaders.isKeepAlive(request)) {
-											response.headers().set(HttpHeaders.Names.CONNECTION,
-													HttpHeaders.Values.KEEP_ALIVE);
+										if (HttpUtil.isKeepAlive(request)) {
+											response.headers().set(HttpHeaderNames.CONNECTION,
+													HttpHeaderValues.KEEP_ALIVE);
 										}
-										response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
-										response.headers().set(HttpHeaders.Names.CONTENT_LENGTH,
+										response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/xml");
+										response.headers().set(HttpHeaderNames.CONTENT_LENGTH,
 												responseMessage.length());
 
 										ctx.writeAndFlush(response);
@@ -127,7 +147,7 @@ public class NettyHttpServer {
 	}
 
 	public static void main(String[] args) {
-		// http://localhost:8080?name=¿Ãµø»∆
+		// http://localhost:8080?name=Ïù¥ÎèôÌõà
 		new NettyHttpServer().start(8080);
 	}
 }
