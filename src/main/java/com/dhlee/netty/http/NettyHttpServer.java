@@ -1,5 +1,5 @@
-package com.dhlee.netty.http;
 
+package com.dhlee.netty.http;
 import static io.netty.buffer.Unpooled.copiedBuffer;
 
 import java.nio.charset.Charset;
@@ -28,6 +28,7 @@ import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.util.CharsetUtil;
 
 public class NettyHttpServer {
 	private ChannelFuture channel;
@@ -41,13 +42,14 @@ public class NettyHttpServer {
 		slaveGroup = new NioEventLoopGroup();
 	}
 	
-	private String handleMessage(String request) {
+	private byte[] handleMessage(String request) {
 		String response = 
-				"<?xml version=\"1.0\" encoding=\"" + charsetName + "\" ?>" +
-				"<response><message>응답 - Hello from Netty!<message><response>";
-		System.out.println("# Body : " + request);	
-		return response;
+				"<?xml version=\"1.0\" encoding=\"" + charsetName + "\"?>" +
+				"<response><message>응답 - Hello from Netty!</message></response>";
+		System.out.println("# handleMessage : " + response);	
+		return response.getBytes();
 	}
+	
 	
 	public void start(int port) {
 		Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -79,36 +81,45 @@ public class NettyHttpServer {
 										
 										//UTF_8  Charset.forName("euc-kr") , CharsetUtil.UTF_8;
 //										QueryStringDecoder decoder = new QueryStringDecoder(request.uri(), CharsetUtil.UTF_8); 
-										QueryStringDecoder decoder = new QueryStringDecoder(request.uri(), true);
+										QueryStringDecoder decoder = new QueryStringDecoder(request.uri(), charset);
 										Map<String,List<String>> params = decoder.parameters();
 										
 										System.out.println("//--------------------------------------------------------------------------");
 										for(String key : params.keySet()) {
-											System.out.println("# GetParam : " + key + " = " + params.get(key));
+											List<String> values = params.get(key);
+											int idx = 0;
+											for(String value : values) {
+												System.out.println("# GetParam : " + key +"[" + idx +"] = " + value);
+//												System.out.println("# GetParam : " + key +"[" + idx +"] = " + new String(value.getBytes(charset), charset));
+												idx++;
+											}
 										}
 										
 										System.out.println("//--------------------------------------------------------------------------");
 										// print body
 										ByteBuf bodyBuf = request.content();
 										int bodySize = bodyBuf.readableBytes();
+										
+										String requestBody = bodyBuf.toString(charset);
 										System.out.println("Body Size : " + bodySize);
+										System.out.println("# Body : " + requestBody);
 										
-										String responseMessage = ""; 
-										if(bodySize > 0) {
-											responseMessage = handleMessage(bodyBuf.toString(charset)); 
-										}
+										byte[] responseMessage = null; 
+//										if(bodySize > 0) {
+											responseMessage = handleMessage(requestBody); 
+//										}
 										
-
+										System.out.println("# responseMessage : "+ new String(responseMessage));
+										
 										FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
-												HttpResponseStatus.OK, copiedBuffer(responseMessage.getBytes(charset)));
+												HttpResponseStatus.OK, copiedBuffer(responseMessage) );
 
 										if (HttpUtil.isKeepAlive(request)) {
 											response.headers().set(HttpHeaderNames.CONNECTION,
 													HttpHeaderValues.KEEP_ALIVE);
 										}
 										response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/xml");
-										response.headers().set(HttpHeaderNames.CONTENT_LENGTH,
-												responseMessage.length());
+										response.headers().set(HttpHeaderNames.CONTENT_LENGTH,responseMessage.length);
 
 										ctx.writeAndFlush(response);
 									} else {
@@ -147,7 +158,7 @@ public class NettyHttpServer {
 	}
 
 	public static void main(String[] args) {
-		// http://localhost:8080?name=이동훈
-		new NettyHttpServer().start(8080);
+		// http://localhost:8090?name=이동훈
+		new NettyHttpServer().start(8090);
 	}
 }

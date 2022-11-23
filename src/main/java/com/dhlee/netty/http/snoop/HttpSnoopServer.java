@@ -26,12 +26,13 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
 public final class HttpSnoopServer {
 
     static final boolean SSL = true; //System.getProperty("ssl") != null;
-    static final boolean SELF_SSL = true; 
+    static final boolean SELF_SSL = false; 
     static final int PORT = Integer.parseInt(System.getProperty("port", SSL? "8443" : "8080"));
 
     public static void main(String[] args) throws Exception {
         // Configure SSL.
         final SslContext sslCtx;
+        
         if (SSL) {
         	
         	if(SELF_SSL) {
@@ -41,11 +42,11 @@ public final class HttpSnoopServer {
         	}
         	else {
 	        	// Java KeyStore 사용        	
-	            File keyStoreFile = new File("C:\\Users\\elink\\.keystore");
+	            File keyStoreFile = new File("C:\\Users\\elink\\ssl.keystore");
 	            String keyPassword = "changeit";
 	            
 	            String algorithm = Security.getProperty("ssl.KeyManagerFactory.algorithm");
-	            SSLContext serverContext = SSLContext.getInstance("TLSv1.2"); //JDK 7 버전부터 지원합니다.
+//	            SSLContext serverContext = SSLContext.getInstance("TLSv1.2"); //JDK 7 버전부터 지원합니다.
 	            final KeyStore ks = KeyStore.getInstance("JKS");
 	            
 	            ks.load(
